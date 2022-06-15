@@ -28,6 +28,38 @@ function askQuestion(query) {
  */
 function isOdd(num) { return num % 2n; }
 
+/**
+ * Format bytes as human-readable text.
+ * 
+ * @param bytes Number of bytes.
+ * @param si True to use metric (SI) units, aka powers of 1000. False to use 
+ *           binary (IEC), aka powers of 1024.
+ * @param dp Number of decimal places to display.
+ * 
+ * @return Formatted string.
+ */
+ function humanFileSize(bytes, si=false, dp=2) {
+    const thresh = si ? 1000 : 1024;
+  
+    if (Math.abs(bytes) < thresh) {
+      return bytes + ' B';
+    }
+  
+    const units = si 
+      ? ['kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'] 
+      : ['KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+    let u = -1;
+    const r = 10**dp;
+  
+    do {
+      bytes /= thresh;
+      ++u;
+    } while (Math.round(Math.abs(bytes) * r) / r >= thresh && u < units.length - 1);
+  
+  
+    return bytes.toFixed(dp) + ' ' + units[u];
+  }
+
 function calculate(MAX_INT) {
     const Calculation_Start = performance.now();
     for (let i = 2n; i < MAX_INT; i++) {
@@ -54,20 +86,27 @@ function calculate(MAX_INT) {
             }
         }
 
-        S_Cache.set(i, C_Cache.join("-"))
+        const result =S_Cache.set(i, C_Cache.join("-"))
+        if (!result) {
+            throw new Error("Failed to write to MegaHash: Out of memory");
+        }
+
     }
     const Calculation_Stop = performance.now();
-
-    for (let i = 0n; i < MAX_INT; i++) {
-        const Cache_Sequenze = S_Cache.get(i);
-        if (Cache_Sequenze !== undefined) {
-            const Cache_Sequenze_Length = Cache_Sequenze.split("-").length;
-            console.log(`${i} -${Cache_Sequenze_Length}-> ${Cache_Sequenze}`);
-        }
-    }
 }
 
 (async function () {
     const MAX_INT = await askQuestion("Enter the max integer: ");
     calculate(MAX_INT + 1);
+    console.log(`\n\nCalculated: ${S_Cache.stats().numKeys} number sequences.\nThis required ${humanFileSize(S_Cache.stats().dataSize, true)} of RAM.\nThe index is ${humanFileSize(S_Cache.stats().indexSize, true)} of RAM.\n\n`);
+
+    for (let i = 0n; i < MAX_INT; i++) {
+        const Cache_Sequenze = S_Cache.get(i);
+        if (Cache_Sequenze !== undefined) {
+            const Cache_Sequenze_Length = Cache_Sequenze.split("-").length;
+            fs.appendFileSync("Sequenze.txt", `${i}-${Cache_Sequenze_Length}-${Cache_Sequenze}\n`);
+        }
+    }
+
+    console.log(`Saved to Sequenze.txt\n\nNUMBER-LENGTH-SEQUENZE-SEQUENZE\n`);
 })();
